@@ -1,6 +1,9 @@
 import utils
 import pandas as pd
 
+pd.options.mode.chained_assignment = None
+
+
 # PLEASE USE THE GIVEN FUNCTION NAME, DO NOT CHANGE IT
 
 def read_csv(filepath):
@@ -114,9 +117,6 @@ def aggregate_events(filtered_events_df, mortality_df,feature_map_df, deliverabl
 
     Return filtered_events
     '''
-    #data['ethnicity'].str.contains('Asian')
-    #filtered_events_df[filtered_events_df['event_id'].str.contains('LAB')]['value'] = 1.0
-    #print(filtered_events_df)
     # ---- for lab rows ----
     columns=['patient_id', 'feature_id', 'feature_value']
     filtered_events_df_lab = filtered_events_df[filtered_events_df['event_id'].str.contains('LAB')]
@@ -185,11 +185,19 @@ def save_svmlight(patient_features, mortality, op_file, op_deliverable):
     
     Note: Please make sure the features are ordered in ascending order, and patients are stored in ascending order as well.     
     '''
+    line = ''
+    for key, value in patient_features.iteritems():
+        line = str(int(key)) + ' ' + str(mortality[key]) + ' '
+        value = sorted(value)
+        for item in value:
+            line += str(int(item[0])) + ":" + str(format(item[1], '.6f')) + ' '
+        line += '\n'
+        #print(line)
     deliverable1 = open(op_file, 'wb')
     deliverable2 = open(op_deliverable, 'wb')
     
-    deliverable1.write("");
-    deliverable2.write("");
+    deliverable1.write(line)
+    deliverable2.write(line)
 
 def main():
     train_path = '../data/train/'
