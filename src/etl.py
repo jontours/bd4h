@@ -1,4 +1,5 @@
 import utils
+import pandas as pd
 
 # PLEASE USE THE GIVEN FUNCTION NAME, DO NOT CHANGE IT
 
@@ -12,14 +13,13 @@ def read_csv(filepath):
     '''
 
     #Columns in events.csv - patient_id,event_id,event_description,timestamp,value
-    events = ''
+    events = pd.read_csv(filepath + 'events.csv')
     
     #Columns in mortality_event.csv - patient_id,timestamp,label
-    mortality = ''
+    mortality = pd.read_csv(filepath + 'mortality_events.csv')
 
     #Columns in event_feature_map.csv - idx,event_id
-    feature_map = ''
-
+    feature_map = pd.read_csv(filepath + 'event_feature_map.csv')
     return events, mortality, feature_map
 
 
@@ -45,8 +45,17 @@ def calculate_index_date(events, mortality, deliverables_path):
 
     Return indx_date
     '''
-
-    indx_date = ''
+    events['timestamp'] = pd.to_datetime(events['timestamp'])
+    mortality['timestamp'] = pd.to_datetime(mortality['timestamp'])
+    mortality = mortality.assign(indx_date=lambda x: x.timestamp - pd.DateOffset(days=30))
+    mortality = mortality[['patient_id','indx_date']]
+    dead_frame = pd.merge(events, mortality, left_on='patient_id', right_on='patient_id')
+    alive_frame = events[~events['patient_id'].isin(dead_frame.patient_id.unique())]
+    collated_dates = alive_frame.groupby(['patient_id'])['patient_id','timestamp'].max()
+    collated_frame = pd.DataFrame(collated_dates)
+    collated_frame.rename(columns = {'timestamp':'indx_date'}, inplace = True)
+    indx_date = pd.concat([collated_frame, mortality])
+    indx_date.to_csv(deliverables_path + 'etl_index_dates.csv', columns=['patient_id', 'indx_date'], index=False)
     return indx_date
 
 
@@ -72,8 +81,12 @@ def filter_events(events, indx_date, deliverables_path):
 
     Return filtered_events
     '''
-
-    filtered_events = ''
+    events = pd.merge(events, indx_date, left_on='patient_id', right_on='patient_id')
+    events['timestamp'] = pd.to_datetime(events['timestamp'])
+    events['indx_date'] = pd.to_datetime(events['indx_date'])
+    filtered_events = events[(events['timestamp'] >= events['indx_date'] - pd.DateOffset(days=2000)) & (events['timestamp'] <= events['indx_date']) ]
+    filtered_events.to_csv(deliverables_path + 'etl_filtered_events.csv', columns=['patient_id', 'event_id', 'value'],
+                           index=False)
     return filtered_events
 
 
@@ -101,7 +114,37 @@ def aggregate_events(filtered_events_df, mortality_df,feature_map_df, deliverabl
 
     Return filtered_events
     '''
-    aggregated_events = ''
+    #data['ethnicity'].str.contains('Asian')
+    #filtered_events_df[filtered_events_df['event_id'].str.contains('LAB')]['value'] = 1.0
+    #print(filtered_events_df)
+    # ---- for lab rows ----
+    columns=['patient_id', 'feature_id', 'feature_value']
+    filtered_events_df_lab = filtered_events_df[filtered_events_df['event_id'].str.contains('LAB')]
+    filtered_events_df_lab['event_id'] = filtered_events_df_lab['event_id'].map(feature_map_df.set_index('event_id')['idx'])
+    filtered_events_df_lab.dropna(subset=['value'])
+    aggregated_events_lab = filtered_events_df_lab.groupby(['patient_id', 'event_id'], as_index=False).count()
+    aggregated_events_lab.rename(columns={'event_id':'feature_id'}, inplace=True)
+    aggregated_events_lab_max = aggregated_events_lab.groupby(['feature_id'], as_index=False).agg({"value":"max"})
+    merged_lab = pd.merge(aggregated_events_lab, aggregated_events_lab_max, left_on="feature_id", right_on="feature_id")
+    merged_lab['feature_value'] = merged_lab['value_x'] / merged_lab['value_y']
+    merged_lab = merged_lab[columns]
+
+
+    # ---- regular continuous valued DRUG etc. stuff
+    continuous_events = filtered_events_df[filtered_events_df['event_id'].str.contains('DRUG') | filtered_events_df['event_id'].str.contains('DIAG')]
+    continuous_events['event_id'] = continuous_events['event_id'].map(
+        feature_map_df.set_index('event_id')['idx'])
+    continuous_events.dropna(subset=['value'])
+    aggregated_events = continuous_events.groupby(['patient_id','event_id'], as_index=False).agg({"value":"sum"})
+    aggregated_events.rename(columns={'event_id': 'feature_id', 'value':'feature_value'}, inplace=True)
+    aggregated_events_max = aggregated_events.groupby(['feature_id'], as_index=False).agg({"feature_value":"max"})
+    merged = pd.merge(aggregated_events, aggregated_events_max, left_on="feature_id", right_on="feature_id")
+    merged['feature_value'] = merged['feature_value_x'] / merged['feature_value_y']
+    merged = merged[columns]
+    aggregated_events = pd.concat([merged_lab, merged])
+    aggregated_events.to_csv(deliverables_path + 'etl_aggregated_events.csv',
+                             columns=['patient_id', 'feature_id', 'feature_value'], index=False)
+
     return aggregated_events
 
 def create_features(events, mortality, feature_map):

@@ -61,12 +61,10 @@ def teardown_aggregate_events ():
 
 @with_setup (setup_index_date, teardown_index_date)
 def test_index_date ():
-    
     expected_indx_dates = {19: datetime.datetime(2014, 2, 2, 0, 0), 99: datetime.datetime(2013, 10, 13, 0, 0), 24581: datetime.datetime(2013, 11, 07, 0, 0), 3014: datetime.datetime(2015, 11, 17, 0, 0)}
     calculate_index_date(events_df, mortality_df, deliverables_path)
     
     indx_date_df = pd.read_csv(deliverables_path + 'etl_index_dates.csv', parse_dates=['indx_date'])
-
     indx_date = dict(zip(indx_date_df.patient_id, indx_date_df.indx_date))
 
     if isinstance(indx_date, pd.DataFrame):
@@ -133,10 +131,10 @@ def test_aggregate_events ():
         actual_data = actual_file.readlines()
         actual_data = actual_data[1:]
         actual_data.sort()
-
     res = True
     msg = ""
     for idx,line in enumerate(expected_data):
+        print(idx,line)
         first = line.split(',')
         second = actual_data[idx].split(',')
         if not (float(first[0])==float(second[0]) and float(first[1]) == float(second[1]) and abs(float(first[2])-float(second[2]))<=0.1):
