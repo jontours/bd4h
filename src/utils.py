@@ -18,6 +18,7 @@ def bag_to_svmlight(input):
 #output: X_train, Y_train
 #Note: If the number of features exceed 3190, please use the appropriate number
 def get_data_from_svmlight(svmlight_file):
+    print(svmlight_file)
     data_train = load_svmlight_file(svmlight_file,n_features=3190)
     X_train = data_train[0]
     Y_train = data_train[1]

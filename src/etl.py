@@ -201,15 +201,19 @@ def save_svmlight(patient_features, mortality, op_file, op_deliverable):
     Note: Please make sure the features are ordered in ascending order, and patients are stored in ascending order as well.     
     '''
     line = ''
+    line_svm = ''
     for key, value in sorted(patient_features.iteritems()):
         line += str(int(key)) + ' ' + str(mortality[key]) + ' '
+        line_svm += str(mortality[key]) + ' '
         value = sorted(value)
         for item in value:
             line += str(int(item[0])) + ":" + str(format(item[1], '.6f')) + ' '
+            line_svm += str(int(item[0])) + ":" + str(format(item[1], '.6f')) + ' '
         line += '\n'
+        line_svm += '\n'
     deliverable1 = open(op_file, 'wb')
     deliverable2 = open(op_deliverable, 'wb')
-    deliverable1.write(line)
+    deliverable1.write(line_svm)
     deliverable2.write(line)
 
 def main():

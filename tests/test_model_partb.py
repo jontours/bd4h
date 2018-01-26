@@ -1,7 +1,7 @@
 from nose.tools import with_setup, ok_, eq_, assert_almost_equals, nottest
 from src.utils import get_data_from_svmlight
 from src.models_partb import logistic_regression_pred,svm_pred,decisionTree_pred,classification_metrics
-from src.cross import get_acc_auc_kfold
+#from src.cross import get_acc_auc_kfold
 
 def setup_module ():
     global X_train, Y_train
